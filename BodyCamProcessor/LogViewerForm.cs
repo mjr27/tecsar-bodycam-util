@@ -27,7 +27,7 @@ public sealed class LogViewerForm : Form
         _logService = logService;
         _coordinator = coordinator;
 
-        Text = L(UiString.LogsTitle);
+        UpdateTitle();
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(760, 520);
         MinimumSize = new Size(560, 360);
@@ -109,7 +109,7 @@ public sealed class LogViewerForm : Form
     public void ApplyLanguage(AppSettings settings)
     {
         _settings = settings;
-        Text = L(UiString.LogsTitle);
+        UpdateTitle();
         _dateLabel.Text = L(UiString.Date);
         LoadLog();
         ConfigureLogWatcher();
@@ -304,6 +304,11 @@ public sealed class LogViewerForm : Form
     }
 
     private AppLanguage CurrentLanguage => Localizer.ParseLanguage(_settings.Language);
+
+    private void UpdateTitle()
+    {
+        Text = $"{L(UiString.LogsTitle)} {AppVersion.DisplayVersion}";
+    }
 
     private string L(UiString key) => Localizer.Get(CurrentLanguage, key);
 
