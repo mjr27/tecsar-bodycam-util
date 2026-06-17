@@ -12,6 +12,9 @@ public sealed class LogViewerForm : Form
     private readonly TextBox _logTextBox = new();
     private readonly ProgressBar _progressBar = new();
     private readonly Label _statusLabel = new();
+    private readonly System.Windows.Forms.Timer _logReloadDebounceTimer = new() { Interval = 250 };
+    private FileSystemWatcher? _logWatcher;
+    private string _loadedLogPath = string.Empty;
 
     public LogViewerForm(AppSettings settings, LogService logService, DriveProcessingCoordinator coordinator)
     {
@@ -29,6 +32,12 @@ public sealed class LogViewerForm : Form
         UpdateProgress();
 
         _coordinator.StateChanged += CoordinatorOnStateChanged;
+        _logReloadDebounceTimer.Tick += (_, _) =>
+        {
+            _logReloadDebounceTimer.Stop();
+            LoadLog();
+        };
+        ConfigureLogWatcher();
     }
 
     private void BuildUi()
@@ -78,8 +87,71 @@ public sealed class LogViewerForm : Form
 
     private void LoadLog()
     {
+        _loadedLogPath = GetSelectedLogPath();
         _logTextBox.Text = _logService.ReadLog(_settings, _datePicker.Value.Date);
     }
+
+    private void ConfigureLogWatcher()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.DestinationPath))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(_settings.DestinationPath);
+        _logWatcher = new FileSystemWatcher(_settings.DestinationPath, "log.txt")
+        {
+            IncludeSubdirectories = true,
+            NotifyFilter = NotifyFilters.CreationTime |
+                           NotifyFilters.FileName |
+                           NotifyFilters.LastWrite |
+                           NotifyFilters.Size
+        };
+        _logWatcher.Changed += LogWatcherOnChanged;
+        _logWatcher.Created += LogWatcherOnChanged;
+        _logWatcher.Deleted += LogWatcherOnChanged;
+        _logWatcher.Renamed += LogWatcherOnRenamed;
+        _logWatcher.EnableRaisingEvents = true;
+    }
+
+    private void LogWatcherOnChanged(object sender, FileSystemEventArgs e)
+    {
+        if (IsSelectedLogPath(e.FullPath))
+        {
+            QueueLogReload();
+        }
+    }
+
+    private void LogWatcherOnRenamed(object sender, RenamedEventArgs e)
+    {
+        if (IsSelectedLogPath(e.FullPath) || IsSelectedLogPath(e.OldFullPath))
+        {
+            QueueLogReload();
+        }
+    }
+
+    private bool IsSelectedLogPath(string path) =>
+        string.Equals(path, _loadedLogPath, StringComparison.OrdinalIgnoreCase);
+
+    private void QueueLogReload()
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        if (InvokeRequired)
+        {
+            BeginInvoke(QueueLogReload);
+            return;
+        }
+
+        _logReloadDebounceTimer.Stop();
+        _logReloadDebounceTimer.Start();
+    }
+
+    private string GetSelectedLogPath() =>
+        Path.Combine(LogService.GetDayFolder(_settings.DestinationPath, _datePicker.Value.Date), "log.txt");
 
     private void CoordinatorOnStateChanged(object? sender, EventArgs e)
     {
@@ -119,6 +191,9 @@ public sealed class LogViewerForm : Form
     {
         if (disposing)
         {
+            _logReloadDebounceTimer.Stop();
+            _logReloadDebounceTimer.Dispose();
+            _logWatcher?.Dispose();
             _coordinator.StateChanged -= CoordinatorOnStateChanged;
         }
 
