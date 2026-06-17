@@ -5,6 +5,9 @@ namespace BodyCamProcessor;
 
 public sealed class LogViewerForm : Form
 {
+    private const int ProgressRowHeight = 48;
+    private const int MaxProgressPanelHeight = 220;
+
     private readonly AppSettings _settings;
     private readonly LogService _logService;
     private readonly DriveProcessingCoordinator _coordinator;
@@ -51,7 +54,7 @@ public sealed class LogViewerForm : Form
         };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
 
         var topPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
@@ -76,8 +79,12 @@ public sealed class LogViewerForm : Form
         _logTextBox.Font = new Font(FontFamily.GenericMonospace, 10);
         root.Controls.Add(_logTextBox, 0, 1);
 
-        _progressTable.Dock = DockStyle.Fill;
+        _progressTable.AutoSize = true;
+        _progressTable.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         _progressTable.AutoScroll = true;
+        _progressTable.Dock = DockStyle.Top;
+        _progressTable.MaximumSize = new Size(0, MaxProgressPanelHeight);
+        _progressTable.Visible = false;
         _progressTable.ColumnCount = 1;
         _progressTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.Controls.Add(_progressTable, 0, 2);
@@ -182,13 +189,14 @@ public sealed class LogViewerForm : Form
         _progressTable.SuspendLayout();
         try
         {
+            _progressTable.Visible = active.Count > 0;
             _progressTable.Controls.Clear();
             _progressTable.RowStyles.Clear();
-            _progressTable.RowCount = Math.Max(1, active.Count);
+            _progressTable.RowCount = active.Count;
 
             for (var index = 0; index < active.Count; index++)
             {
-                _progressTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+                _progressTable.RowStyles.Add(new RowStyle(SizeType.Absolute, ProgressRowHeight));
                 _progressTable.Controls.Add(CreateProgressRow(active[index]), 0, index);
             }
         }
