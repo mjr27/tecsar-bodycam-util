@@ -1,0 +1,8 @@
+{
+  "SourcePath": "\\files\\data\\",
+  "DestinationPath": "C:\\BodyCamImports",
+  "AllowedDiskNames": [
+    "CAM01",
+    "CAM02"
+  ]
+}
