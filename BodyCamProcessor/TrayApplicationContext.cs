@@ -16,6 +16,7 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly Icon _appIcon = LoadApplicationIcon();
     private readonly Icon _idleIcon = IconFactory.CreateIdleIcon();
     private readonly Icon _copyingIcon = IconFactory.CreateCopyingIcon();
+    private readonly Icon _pausedIcon = IconFactory.CreatePausedIcon();
     private readonly SynchronizationContext _uiContext;
     private ToolStripMenuItem? _pauseResumeMenuItem;
     private LogViewerForm? _logViewerForm;
@@ -163,7 +164,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
         if (_coordinator.IsPaused)
         {
-            _notifyIcon.Icon = _copyingIcon;
+            _notifyIcon.Icon = _pausedIcon;
             _notifyIcon.Text = TrimTooltip("Paused");
             return;
         }
@@ -198,6 +199,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         _appIcon.Dispose();
         _idleIcon.Dispose();
         _copyingIcon.Dispose();
+        _pausedIcon.Dispose();
         base.ExitThreadCore();
     }
 

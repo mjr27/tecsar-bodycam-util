@@ -5,29 +5,36 @@ namespace BodyCamProcessor;
 
 public static class IconFactory
 {
-    public static Icon CreateIdleIcon() => CreateBodyCamIcon(Color.FromArgb(35, 160, 80));
+    public static Icon CreateIdleIcon() => CreateBodyCamIcon(Color.FromArgb(34, 160, 70));
 
-    public static Icon CreateCopyingIcon() => CreateBodyCamIcon(Color.FromArgb(210, 45, 45));
+    public static Icon CreateCopyingIcon() => CreateBodyCamIcon(Color.FromArgb(220, 35, 35));
 
-    private static Icon CreateBodyCamIcon(Color statusColor)
+    public static Icon CreatePausedIcon() => CreateBodyCamIcon(Color.FromArgb(245, 200, 40));
+
+    private static Icon CreateBodyCamIcon(Color backgroundColor)
     {
         using var bitmap = new Bitmap(64, 64, PixelFormat.Format32bppArgb);
         using var graphics = Graphics.FromImage(bitmap);
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.Clear(Color.Transparent);
 
+        using var backgroundBrush = new SolidBrush(backgroundColor);
+        using var backgroundBorderPen = new Pen(Color.White, 3);
         using var bodyBrush = new SolidBrush(Color.FromArgb(34, 38, 44));
         using var borderPen = new Pen(Color.White, 3);
         using var lensBrush = new SolidBrush(Color.FromArgb(18, 22, 28));
-        using var lensPen = new Pen(Color.FromArgb(145, 180, 210), 3);
-        using var statusBrush = new SolidBrush(statusColor);
+        using var lensPen = new Pen(Color.FromArgb(185, 225, 255), 3);
+        using var highlightBrush = new SolidBrush(Color.FromArgb(235, 240, 245));
 
-        graphics.FillRoundedRectangle(bodyBrush, new Rectangle(13, 8, 38, 50), 8);
-        graphics.DrawRoundedRectangle(borderPen, new Rectangle(13, 8, 38, 50), 8);
+        graphics.FillEllipse(backgroundBrush, 2, 2, 60, 60);
+        graphics.DrawEllipse(backgroundBorderPen, 2, 2, 60, 60);
+        graphics.FillRoundedRectangle(bodyBrush, new Rectangle(15, 10, 34, 46), 7);
+        graphics.DrawRoundedRectangle(borderPen, new Rectangle(15, 10, 34, 46), 7);
         graphics.FillEllipse(lensBrush, 22, 20, 20, 20);
         graphics.DrawEllipse(lensPen, 22, 20, 20, 20);
-        graphics.FillEllipse(statusBrush, 39, 12, 8, 8);
-        graphics.FillRectangle(statusBrush, 25, 45, 14, 5);
+        graphics.FillEllipse(highlightBrush, 28, 26, 6, 6);
+        graphics.FillRoundedRectangle(highlightBrush, new Rectangle(25, 45, 14, 5), 2);
+        graphics.FillEllipse(highlightBrush, 39, 14, 6, 6);
 
         return Icon.FromHandle(bitmap.GetHicon());
     }
