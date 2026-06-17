@@ -10,7 +10,7 @@ public sealed class LogViewerForm : Form
     private readonly DriveProcessingCoordinator _coordinator;
     private readonly DateTimePicker _datePicker = new();
     private readonly TextBox _logTextBox = new();
-    private readonly ProgressBar _progressBar = new();
+    private readonly TableLayoutPanel _progressTable = new();
     private readonly Label _statusLabel = new();
     private readonly System.Windows.Forms.Timer _logReloadDebounceTimer = new() { Interval = 250 };
     private FileSystemWatcher? _logWatcher;
@@ -51,7 +51,7 @@ public sealed class LogViewerForm : Form
         };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
 
         var topPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
@@ -76,8 +76,11 @@ public sealed class LogViewerForm : Form
         _logTextBox.Font = new Font(FontFamily.GenericMonospace, 10);
         root.Controls.Add(_logTextBox, 0, 1);
 
-        _progressBar.Dock = DockStyle.Fill;
-        root.Controls.Add(_progressBar, 0, 2);
+        _progressTable.Dock = DockStyle.Fill;
+        _progressTable.AutoScroll = true;
+        _progressTable.ColumnCount = 1;
+        _progressTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        root.Controls.Add(_progressTable, 0, 2);
 
         _statusLabel.Dock = DockStyle.Fill;
         root.Controls.Add(_statusLabel, 0, 3);
@@ -172,19 +175,89 @@ public sealed class LogViewerForm : Form
 
     private void UpdateProgress()
     {
-        var active = _coordinator.Active;
+        var active = _coordinator.Active
+            .OrderBy(progress => progress.DiskName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _progressTable.SuspendLayout();
+        try
+        {
+            _progressTable.Controls.Clear();
+            _progressTable.RowStyles.Clear();
+            _progressTable.RowCount = Math.Max(1, active.Count);
+
+            for (var index = 0; index < active.Count; index++)
+            {
+                _progressTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+                _progressTable.Controls.Add(CreateProgressRow(active[index]), 0, index);
+            }
+        }
+        finally
+        {
+            _progressTable.ResumeLayout();
+        }
+
         if (active.Count == 0)
         {
-            _progressBar.Style = ProgressBarStyle.Blocks;
-            _progressBar.Value = 0;
             _statusLabel.Text = "Idle";
             return;
         }
 
-        _progressBar.Style = ProgressBarStyle.Marquee;
         _statusLabel.Text = active.Count == 1
             ? $"Processing {active.First().DiskName}: {active.First().MovedFiles} files, {LogService.FormatBytes(active.First().MovedBytes)}"
             : $"Processing {active.Count} drives";
+    }
+
+    private static Control CreateProgressRow(DriveProcessingProgress progress)
+    {
+        var row = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0, 0, 0, 6)
+        };
+        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+
+        var label = new Label
+        {
+            Dock = DockStyle.Fill,
+            AutoEllipsis = true,
+            Text = FormatProgressText(progress)
+        };
+        row.Controls.Add(label, 0, 0);
+
+        var progressBar = new ProgressBar
+        {
+            Dock = DockStyle.Fill,
+            Style = ProgressBarStyle.Blocks,
+            Minimum = 0,
+            Maximum = 10000,
+            Value = CalculateProgressBarValue(progress)
+        };
+        row.Controls.Add(progressBar, 0, 1);
+
+        return row;
+    }
+
+    private static string FormatProgressText(DriveProcessingProgress progress)
+    {
+        var copied = LogService.FormatBytes(progress.DestinationBytes);
+        var total = LogService.FormatBytes(progress.TotalBytes);
+        var currentFile = string.IsNullOrWhiteSpace(progress.CurrentFile) ? string.Empty : $" | {progress.CurrentFile}";
+        return $"{progress.DiskName}: {copied} / {total} | {progress.MovedFiles} files moved{currentFile}";
+    }
+
+    private static int CalculateProgressBarValue(DriveProcessingProgress progress)
+    {
+        if (progress.TotalBytes <= 0)
+        {
+            return 0;
+        }
+
+        var value = (int)Math.Round(progress.DestinationBytes * 10000d / progress.TotalBytes);
+        return Math.Clamp(value, 0, 10000);
     }
 
     protected override void Dispose(bool disposing)

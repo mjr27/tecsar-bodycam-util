@@ -24,6 +24,17 @@ public sealed class FileMoveService
 
             var movedFiles = 0;
             var movedBytes = 0L;
+            var sourceBytes = GetFolderSize(sourcePath);
+            var destinationBytes = GetFolderSize(destinationRoot);
+
+            progress?.Report(new DriveProcessingProgress(
+                drive.RootPath,
+                drive.VolumeLabel,
+                movedFiles,
+                movedBytes,
+                destinationBytes,
+                sourceBytes + destinationBytes,
+                string.Empty));
 
             foreach (var sourceFile in Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories))
             {
@@ -47,7 +58,16 @@ public sealed class FileMoveService
                 {
                     movedFiles++;
                     movedBytes += fileSize;
-                    progress?.Report(new DriveProcessingProgress(drive.RootPath, drive.VolumeLabel, movedFiles, movedBytes, relativePath));
+                    sourceBytes = Math.Max(0, sourceBytes - fileSize);
+                    destinationBytes += fileSize;
+                    progress?.Report(new DriveProcessingProgress(
+                        drive.RootPath,
+                        drive.VolumeLabel,
+                        movedFiles,
+                        movedBytes,
+                        destinationBytes,
+                        sourceBytes + destinationBytes,
+                        relativePath));
                 }
             }
 
@@ -84,6 +104,29 @@ public sealed class FileMoveService
         }
 
         return false;
+    }
+
+    private static long GetFolderSize(string folder)
+    {
+        if (!Directory.Exists(folder))
+        {
+            return 0;
+        }
+
+        var totalBytes = 0L;
+        foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+        {
+            try
+            {
+                totalBytes += new FileInfo(file).Length;
+            }
+            catch
+            {
+                // Ignore files that disappear or cannot be read while progress is calculated.
+            }
+        }
+
+        return totalBytes;
     }
 
     private static void RemoveEmptyDirectories(string root)

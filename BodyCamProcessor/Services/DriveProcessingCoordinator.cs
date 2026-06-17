@@ -96,7 +96,7 @@ public sealed class DriveProcessingCoordinator
             }
 
             _processedThisConnection.Add(drive.RootPath);
-            _active[drive.RootPath] = new DriveProcessingProgress(drive.RootPath, drive.VolumeLabel, 0, 0, string.Empty);
+            _active[drive.RootPath] = new DriveProcessingProgress(drive.RootPath, drive.VolumeLabel, 0, 0, 0, 0, string.Empty);
         }
 
         StateChanged?.Invoke(this, EventArgs.Empty);
