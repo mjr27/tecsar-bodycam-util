@@ -29,10 +29,10 @@ public sealed class LogService
 
         Directory.CreateDirectory(dayFolder);
 
-        var line = $"{DateTime.Now:yyyy-MM-dd HH:mm} | {result.DiskName} | {totals.FileCount} {Localizer.Get(settings.Language, UiString.Files)} | {FormatBytes(totals.TotalBytes)}";
+        var line = $"{DateTime.Now:yyyy-MM-dd HH:mm} | {result.DiskName} | {totals.FileCount} {Localizer.Get(AppLanguage.English, UiString.Files)} | {FormatBytes(totals.TotalBytes)}";
         if (!string.IsNullOrWhiteSpace(result.Error))
         {
-            line += $" | {Localizer.Get(settings.Language, UiString.Error)}: {result.Error}";
+            line += $" | {Localizer.Get(AppLanguage.English, UiString.Error)}: {result.Error}";
         }
 
         var logPath = Path.Combine(dayFolder, "log.txt");

@@ -258,14 +258,14 @@ public sealed class LogViewerForm : Form
         };
         row.Controls.Add(label, 0, 0);
 
-        var progressBar = new ProgressBar
+        var progressBar = new InstantProgressBar
         {
             Dock = DockStyle.Fill,
             Style = ProgressBarStyle.Blocks,
             Minimum = 0,
-            Maximum = 10000,
-            Value = CalculateProgressBarValue(progress)
+            Maximum = 10000
         };
+        progressBar.SetInstantValue(CalculateProgressBarValue(progress));
         row.Controls.Add(progressBar, 0, 1);
 
         return row;
