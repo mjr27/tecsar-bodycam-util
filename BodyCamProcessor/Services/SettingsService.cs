@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BodyCamProcessor.Localization;
 using BodyCamProcessor.Models;
 
 namespace BodyCamProcessor.Services;
@@ -31,7 +32,9 @@ public sealed class SettingsService
         try
         {
             var json = File.ReadAllText(_settingsPath);
-            return JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions) ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions) ?? new AppSettings();
+            settings.Language = Localizer.ToLanguageCode(Localizer.ParseLanguage(settings.Language));
+            return settings;
         }
         catch
         {

@@ -1,3 +1,4 @@
+using BodyCamProcessor.Localization;
 using BodyCamProcessor.Models;
 using BodyCamProcessor.Services;
 
@@ -8,12 +9,13 @@ public sealed class LogViewerForm : Form
     private const int ProgressRowHeight = 48;
     private const int MaxProgressPanelHeight = 220;
 
-    private readonly AppSettings _settings;
+    private AppSettings _settings;
     private readonly LogService _logService;
     private readonly DriveProcessingCoordinator _coordinator;
     private readonly DateTimePicker _datePicker = new();
     private readonly TextBox _logTextBox = new();
     private readonly TableLayoutPanel _progressTable = new();
+    private readonly Label _dateLabel = new();
     private readonly Label _statusLabel = new();
     private readonly System.Windows.Forms.Timer _logReloadDebounceTimer = new() { Interval = 250 };
     private FileSystemWatcher? _logWatcher;
@@ -25,7 +27,7 @@ public sealed class LogViewerForm : Form
         _logService = logService;
         _coordinator = coordinator;
 
-        Text = "BodyCamProcessor Logs";
+        Text = L(UiString.LogsTitle);
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(760, 520);
         MinimumSize = new Size(560, 360);
@@ -65,7 +67,10 @@ public sealed class LogViewerForm : Form
         _datePicker.Format = DateTimePickerFormat.Short;
         _datePicker.Value = DateTime.Today;
         _datePicker.ValueChanged += (_, _) => LoadLog();
-        topPanel.Controls.Add(new Label { Text = "Date", AutoSize = true, Padding = new Padding(0, 7, 6, 0) });
+        _dateLabel.Text = L(UiString.Date);
+        _dateLabel.AutoSize = true;
+        _dateLabel.Padding = new Padding(0, 7, 6, 0);
+        topPanel.Controls.Add(_dateLabel);
         topPanel.Controls.Add(previousDayButton);
         topPanel.Controls.Add(_datePicker);
         topPanel.Controls.Add(nextDayButton);
@@ -101,8 +106,21 @@ public sealed class LogViewerForm : Form
         _logTextBox.Text = _logService.ReadLog(_settings, _datePicker.Value.Date);
     }
 
+    public void ApplyLanguage(AppSettings settings)
+    {
+        _settings = settings;
+        Text = L(UiString.LogsTitle);
+        _dateLabel.Text = L(UiString.Date);
+        LoadLog();
+        ConfigureLogWatcher();
+        UpdateProgress();
+    }
+
     private void ConfigureLogWatcher()
     {
+        _logWatcher?.Dispose();
+        _logWatcher = null;
+
         if (string.IsNullOrWhiteSpace(_settings.DestinationPath))
         {
             return;
@@ -197,7 +215,7 @@ public sealed class LogViewerForm : Form
             for (var index = 0; index < active.Count; index++)
             {
                 _progressTable.RowStyles.Add(new RowStyle(SizeType.Absolute, ProgressRowHeight));
-                _progressTable.Controls.Add(CreateProgressRow(active[index]), 0, index);
+                _progressTable.Controls.Add(CreateProgressRow(active[index], CurrentLanguage), 0, index);
             }
         }
         finally
@@ -207,16 +225,20 @@ public sealed class LogViewerForm : Form
 
         if (active.Count == 0)
         {
-            _statusLabel.Text = "Idle";
+            _statusLabel.Text = L(UiString.Idle);
             return;
         }
 
         _statusLabel.Text = active.Count == 1
-            ? $"Processing {active.First().DiskName}: {active.First().MovedFiles} files, {LogService.FormatBytes(active.First().MovedBytes)}"
-            : $"Processing {active.Count} drives";
+            ? L(
+                UiString.ProcessingDiskStatus,
+                active.First().DiskName,
+                active.First().MovedFiles,
+                LogService.FormatBytes(active.First().MovedBytes))
+            : L(UiString.ProcessingDriveCount, active.Count);
     }
 
-    private static Control CreateProgressRow(DriveProcessingProgress progress)
+    private static Control CreateProgressRow(DriveProcessingProgress progress, AppLanguage language)
     {
         var row = new TableLayoutPanel
         {
@@ -232,7 +254,7 @@ public sealed class LogViewerForm : Form
         {
             Dock = DockStyle.Fill,
             AutoEllipsis = true,
-            Text = FormatProgressText(progress)
+            Text = FormatProgressText(progress, language)
         };
         row.Controls.Add(label, 0, 0);
 
@@ -249,12 +271,12 @@ public sealed class LogViewerForm : Form
         return row;
     }
 
-    private static string FormatProgressText(DriveProcessingProgress progress)
+    private static string FormatProgressText(DriveProcessingProgress progress, AppLanguage language)
     {
         var copied = LogService.FormatBytes(progress.DestinationBytes);
         var total = LogService.FormatBytes(progress.TotalBytes);
         var currentFile = string.IsNullOrWhiteSpace(progress.CurrentFile) ? string.Empty : $" | {progress.CurrentFile}";
-        return $"{progress.DiskName}: {copied} / {total} | {progress.MovedFiles} files moved{currentFile}";
+        return $"{progress.DiskName}: {copied} / {total} | {Localizer.Format(language, UiString.ProgressFilesMoved, progress.MovedFiles)}{currentFile}";
     }
 
     private static int CalculateProgressBarValue(DriveProcessingProgress progress)
@@ -280,4 +302,10 @@ public sealed class LogViewerForm : Form
 
         base.Dispose(disposing);
     }
+
+    private AppLanguage CurrentLanguage => Localizer.ParseLanguage(_settings.Language);
+
+    private string L(UiString key) => Localizer.Get(CurrentLanguage, key);
+
+    private string L(UiString key, params object[] args) => Localizer.Format(CurrentLanguage, key, args);
 }

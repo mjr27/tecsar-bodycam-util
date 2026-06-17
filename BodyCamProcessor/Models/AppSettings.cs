@@ -8,4 +8,6 @@ public sealed class AppSettings
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "BodyCamImports");
 
     public List<string> AllowedDiskNames { get; set; } = [];
+
+    public string Language { get; set; } = "en";
 }

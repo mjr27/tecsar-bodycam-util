@@ -1,3 +1,4 @@
+using BodyCamProcessor.Localization;
 using BodyCamProcessor.Models;
 using BodyCamProcessor.Services;
 
@@ -21,10 +22,11 @@ public sealed class SettingsForm : Form
         {
             SourcePath = settings.SourcePath,
             DestinationPath = settings.DestinationPath,
-            AllowedDiskNames = settings.AllowedDiskNames.ToList()
+            AllowedDiskNames = settings.AllowedDiskNames.ToList(),
+            Language = settings.Language
         };
 
-        Text = "BodyCamProcessor Configuration";
+        Text = L(UiString.ConfigurationTitle);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -53,20 +55,20 @@ public sealed class SettingsForm : Form
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
 
-        root.Controls.Add(new Label { Text = "Source path", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
+        root.Controls.Add(new Label { Text = L(UiString.SourcePath), AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
         _sourcePathTextBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         root.Controls.Add(_sourcePathTextBox, 1, 0);
         root.SetColumnSpan(_sourcePathTextBox, 2);
 
-        root.Controls.Add(new Label { Text = "Destination", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
+        root.Controls.Add(new Label { Text = L(UiString.Destination), AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
         _destinationPathTextBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         root.Controls.Add(_destinationPathTextBox, 1, 1);
-        var browseButton = CreateButton("Browse");
+        var browseButton = CreateButton(L(UiString.Browse));
         browseButton.Anchor = AnchorStyles.Right;
         browseButton.Click += (_, _) => BrowseDestination();
         root.Controls.Add(browseButton, 2, 1);
 
-        root.Controls.Add(new Label { Text = "Allowed disks", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 2);
+        root.Controls.Add(new Label { Text = L(UiString.AllowedDisks), AutoSize = true, Anchor = AnchorStyles.Left }, 0, 2);
         _allowedDiskNamesListBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom;
         root.Controls.Add(_allowedDiskNamesListBox, 1, 2);
         root.SetColumnSpan(_allowedDiskNamesListBox, 2);
@@ -80,9 +82,9 @@ public sealed class SettingsForm : Form
             Padding = new Padding(0, 4, 0, 0)
         };
         var manualNameTextBox = new TextBox { Width = 220, Margin = new Padding(3, 3, 10, 3) };
-        var addManualButton = CreateButton("Add");
+        var addManualButton = CreateButton(L(UiString.Add));
         addManualButton.Click += (_, _) => AddDiskName(manualNameTextBox.Text);
-        var removeButton = CreateButton("Remove");
+        var removeButton = CreateButton(L(UiString.Remove));
         removeButton.Click += (_, _) => RemoveSelectedDiskName();
         addPanel.Controls.Add(manualNameTextBox);
         addPanel.Controls.Add(addManualButton);
@@ -90,11 +92,11 @@ public sealed class SettingsForm : Form
         root.Controls.Add(addPanel, 1, 5);
         root.SetColumnSpan(addPanel, 2);
 
-        root.Controls.Add(new Label { Text = "Inserted drive", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 6);
+        root.Controls.Add(new Label { Text = L(UiString.InsertedDrive), AutoSize = true, Anchor = AnchorStyles.Left }, 0, 6);
         _connectedDrivesComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
         _connectedDrivesComboBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         root.Controls.Add(_connectedDrivesComboBox, 1, 6);
-        var addInsertedButton = CreateButton("Add Drive");
+        var addInsertedButton = CreateButton(L(UiString.AddDrive));
         addInsertedButton.Anchor = AnchorStyles.Right;
         addInsertedButton.Click += (_, _) => AddSelectedInsertedDrive();
         root.Controls.Add(addInsertedButton, 2, 6);
@@ -106,9 +108,9 @@ public sealed class SettingsForm : Form
             Padding = new Padding(0, 4, 0, 0),
             WrapContents = false
         };
-        var saveButton = CreateButton("Save");
+        var saveButton = CreateButton(L(UiString.Save));
         saveButton.DialogResult = DialogResult.OK;
-        var cancelButton = CreateButton("Cancel");
+        var cancelButton = CreateButton(L(UiString.Cancel));
         cancelButton.DialogResult = DialogResult.Cancel;
         saveButton.Click += (_, _) => SaveValues();
         buttonsPanel.Controls.Add(saveButton);
@@ -195,7 +197,7 @@ public sealed class SettingsForm : Form
     {
         using var dialog = new FolderBrowserDialog
         {
-            Description = "Select destination folder",
+            Description = L(UiString.SelectDestinationFolder),
             SelectedPath = Directory.Exists(_destinationPathTextBox.Text) ? _destinationPathTextBox.Text : string.Empty
         };
 
@@ -253,9 +255,14 @@ public sealed class SettingsForm : Form
             AllowedDiskNames = Settings.AllowedDiskNames
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList()
+                .ToList(),
+            Language = Settings.Language
         };
     }
+
+    private AppLanguage CurrentLanguage => Localizer.ParseLanguage(Settings.Language);
+
+    private string L(UiString key) => Localizer.Get(CurrentLanguage, key);
 
     protected override void Dispose(bool disposing)
     {

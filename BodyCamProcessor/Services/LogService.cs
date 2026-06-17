@@ -1,3 +1,4 @@
+using BodyCamProcessor.Localization;
 using BodyCamProcessor.Models;
 
 namespace BodyCamProcessor.Services;
@@ -28,10 +29,10 @@ public sealed class LogService
 
         Directory.CreateDirectory(dayFolder);
 
-        var line = $"{DateTime.Now:yyyy-MM-dd HH:mm} | {result.DiskName} | {totals.FileCount} files | {FormatBytes(totals.TotalBytes)}";
+        var line = $"{DateTime.Now:yyyy-MM-dd HH:mm} | {result.DiskName} | {totals.FileCount} {Localizer.Get(settings.Language, UiString.Files)} | {FormatBytes(totals.TotalBytes)}";
         if (!string.IsNullOrWhiteSpace(result.Error))
         {
-            line += $" | ERROR: {result.Error}";
+            line += $" | {Localizer.Get(settings.Language, UiString.Error)}: {result.Error}";
         }
 
         var logPath = Path.Combine(dayFolder, "log.txt");
@@ -58,7 +59,7 @@ public sealed class LogService
     public string ReadLog(AppSettings settings, DateTime date)
     {
         var path = Path.Combine(GetDayFolder(settings.DestinationPath, date), "log.txt");
-        return File.Exists(path) ? File.ReadAllText(path) : "No log exists for the selected date.";
+        return File.Exists(path) ? File.ReadAllText(path) : Localizer.Get(settings.Language, UiString.NoLogForSelectedDate);
     }
 
     public static string GetDayFolder(string destinationPath, DateTime date) =>

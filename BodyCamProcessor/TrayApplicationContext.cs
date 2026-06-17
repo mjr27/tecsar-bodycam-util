@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Media;
+using BodyCamProcessor.Localization;
 using BodyCamProcessor.Models;
 using BodyCamProcessor.Services;
 
@@ -19,9 +20,15 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly Icon _pausedIcon = IconFactory.CreatePausedIcon();
     private readonly SynchronizationContext _uiContext;
     private ToolStripMenuItem? _pauseResumeMenuItem;
+    private ToolStripMenuItem? _openConfigurationMenuItem;
+    private ToolStripMenuItem? _openDestinationFolderMenuItem;
+    private ToolStripMenuItem? _languageMenuItem;
+    private ToolStripMenuItem? _englishMenuItem;
+    private ToolStripMenuItem? _ukrainianMenuItem;
+    private ToolStripMenuItem? _exitMenuItem;
     private LogViewerForm? _logViewerForm;
     private AppSettings _settings;
-    private string _lastCompleted = "Idle";
+    private string? _lastCompletedDiskName;
 
     public TrayApplicationContext()
     {
@@ -33,7 +40,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         _notifyIcon = new NotifyIcon
         {
             Icon = _idleIcon,
-            Text = "Idle",
+            Text = L(UiString.Idle),
             Visible = true,
             ContextMenuStrip = BuildContextMenu()
         };
@@ -51,13 +58,24 @@ public sealed class TrayApplicationContext : ApplicationContext
     private ContextMenuStrip BuildContextMenu()
     {
         var menu = new ContextMenuStrip();
-        _pauseResumeMenuItem = new ToolStripMenuItem("Pause", null, (_, _) => TogglePaused());
+        _pauseResumeMenuItem = new ToolStripMenuItem(L(UiString.Pause), null, (_, _) => TogglePaused());
         menu.Items.Add(_pauseResumeMenuItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Open Configuration", null, (_, _) => OpenConfiguration());
-        menu.Items.Add("Open Destination Folder", null, (_, _) => OpenDestinationFolder());
+        _openConfigurationMenuItem = new ToolStripMenuItem(L(UiString.OpenConfiguration), null, (_, _) => OpenConfiguration());
+        _openDestinationFolderMenuItem = new ToolStripMenuItem(L(UiString.OpenDestinationFolder), null, (_, _) => OpenDestinationFolder());
+        menu.Items.Add(_openConfigurationMenuItem);
+        menu.Items.Add(_openDestinationFolderMenuItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Exit", null, (_, _) => ExitThread());
+        _languageMenuItem = new ToolStripMenuItem(L(UiString.Language));
+        _englishMenuItem = new ToolStripMenuItem("English", null, (_, _) => ChangeLanguage(AppLanguage.English));
+        _ukrainianMenuItem = new ToolStripMenuItem("Українська", null, (_, _) => ChangeLanguage(AppLanguage.Ukrainian));
+        _languageMenuItem.DropDownItems.Add(_englishMenuItem);
+        _languageMenuItem.DropDownItems.Add(_ukrainianMenuItem);
+        menu.Items.Add(_languageMenuItem);
+        menu.Items.Add(new ToolStripSeparator());
+        _exitMenuItem = new ToolStripMenuItem(L(UiString.Exit), null, (_, _) => ExitThread());
+        menu.Items.Add(_exitMenuItem);
+        ApplyLanguageToTrayMenu();
         return menu;
     }
 
@@ -110,8 +128,66 @@ public sealed class TrayApplicationContext : ApplicationContext
         _settings = form.Settings;
         _settingsService.Save(_settings);
         _coordinator.UpdateSettings(_settings);
+        ApplyLanguage();
 
         ProcessConnectedCandidateDrives();
+    }
+
+    private void ChangeLanguage(AppLanguage language)
+    {
+        if (CurrentLanguage == language)
+        {
+            return;
+        }
+
+        _settings.Language = Localizer.ToLanguageCode(language);
+        _settingsService.Save(_settings);
+        ApplyLanguage();
+    }
+
+    private void ApplyLanguage()
+    {
+        ApplyLanguageToTrayMenu();
+        _logViewerForm?.ApplyLanguage(_settings);
+        UpdateTrayStatus();
+    }
+
+    private void ApplyLanguageToTrayMenu()
+    {
+        if (_pauseResumeMenuItem is not null)
+        {
+            _pauseResumeMenuItem.Text = _coordinator.IsPaused ? L(UiString.Resume) : L(UiString.Pause);
+        }
+
+        if (_openConfigurationMenuItem is not null)
+        {
+            _openConfigurationMenuItem.Text = L(UiString.OpenConfiguration);
+        }
+
+        if (_openDestinationFolderMenuItem is not null)
+        {
+            _openDestinationFolderMenuItem.Text = L(UiString.OpenDestinationFolder);
+        }
+
+        if (_languageMenuItem is not null)
+        {
+            _languageMenuItem.Text = L(UiString.Language);
+        }
+
+        if (_englishMenuItem is not null)
+        {
+            _englishMenuItem.Checked = CurrentLanguage == AppLanguage.English;
+        }
+
+        if (_ukrainianMenuItem is not null)
+        {
+            _ukrainianMenuItem.Checked = CurrentLanguage == AppLanguage.Ukrainian;
+        }
+
+        if (_exitMenuItem is not null)
+        {
+            _exitMenuItem.Text = L(UiString.Exit);
+        }
     }
 
     private void ProcessConnectedCandidateDrives()
@@ -134,7 +210,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private void ShowCompleted(DriveProcessingResult result)
     {
-        _lastCompleted = $"Completed {result.DiskName}";
+        _lastCompletedDiskName = result.DiskName;
         UpdateTrayStatus();
 
         if (result.MovedFiles == 0)
@@ -143,8 +219,8 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
 
         var body = result.SourceFound
-            ? $"{result.MovedFiles} files moved ({LogService.FormatBytes(result.MovedBytes)})."
-            : "Source folder was not found; no files moved.";
+            ? L(UiString.FilesMoved, result.MovedFiles, LogService.FormatBytes(result.MovedBytes))
+            : L(UiString.SourceFolderNotFound);
 
         if (!string.IsNullOrWhiteSpace(result.Error))
         {
@@ -159,13 +235,13 @@ public sealed class TrayApplicationContext : ApplicationContext
     {
         if (_pauseResumeMenuItem is not null)
         {
-            _pauseResumeMenuItem.Text = _coordinator.IsPaused ? "Resume" : "Pause";
+            _pauseResumeMenuItem.Text = _coordinator.IsPaused ? L(UiString.Resume) : L(UiString.Pause);
         }
 
         if (_coordinator.IsPaused)
         {
             _notifyIcon.Icon = _pausedIcon;
-            _notifyIcon.Text = TrimTooltip("Paused");
+            _notifyIcon.Text = TrimTooltip(L(UiString.Paused));
             return;
         }
 
@@ -173,17 +249,25 @@ public sealed class TrayApplicationContext : ApplicationContext
         if (active.Count == 0)
         {
             _notifyIcon.Icon = _idleIcon;
-            _notifyIcon.Text = TrimTooltip(_lastCompleted);
+            _notifyIcon.Text = TrimTooltip(_lastCompletedDiskName is null
+                ? L(UiString.Idle)
+                : L(UiString.CompletedDisk, _lastCompletedDiskName));
             return;
         }
 
         _notifyIcon.Icon = _copyingIcon;
         _notifyIcon.Text = active.Count == 1
-            ? TrimTooltip($"Processing {active.First().DiskName}... {active.First().MovedFiles} files")
-            : TrimTooltip($"Processing {active.Count} drives...");
+            ? TrimTooltip(L(UiString.ProcessingDiskFiles, active.First().DiskName, active.First().MovedFiles))
+            : TrimTooltip(L(UiString.ProcessingDriveCountTooltip, active.Count));
     }
 
     private static string TrimTooltip(string value) => value.Length <= 63 ? value : value[..63];
+
+    private AppLanguage CurrentLanguage => Localizer.ParseLanguage(_settings.Language);
+
+    private string L(UiString key) => Localizer.Get(CurrentLanguage, key);
+
+    private string L(UiString key, params object[] args) => Localizer.Format(CurrentLanguage, key, args);
 
     private void Ui(Action action)
     {

@@ -4,5 +4,6 @@
   "AllowedDiskNames": [
     "CAM01",
     "CAM02"
-  ]
+  ],
+  "Language": "en"
 }
