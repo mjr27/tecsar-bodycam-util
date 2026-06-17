@@ -156,6 +156,7 @@ public sealed class SettingsForm : Form
     {
         var selectedItem = _connectedDrivesComboBox.SelectedItem as string;
         var driveItems = _driveDiscoveryService.GetCandidateDrives()
+            .Where(drive => !Settings.AllowedDiskNames.Contains(drive.VolumeLabel, StringComparer.OrdinalIgnoreCase))
             .Select(drive => $"{drive.VolumeLabel} ({drive.RootPath})")
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -215,6 +216,7 @@ public sealed class SettingsForm : Form
 
         Settings.AllowedDiskNames.Add(diskName);
         RefreshAllowedDiskNames();
+        RefreshConnectedDrives();
     }
 
     private void AddSelectedInsertedDrive()
@@ -237,6 +239,7 @@ public sealed class SettingsForm : Form
 
         Settings.AllowedDiskNames.RemoveAll(name => string.Equals(name, selected, StringComparison.OrdinalIgnoreCase));
         RefreshAllowedDiskNames();
+        RefreshConnectedDrives();
     }
 
     private void SaveValues()
